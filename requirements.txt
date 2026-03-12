@@ -1,0 +1,7 @@
+streamlit
+pyupbit
+pandas
+numpy
+scikit-learn
+lightgbm
+requests
