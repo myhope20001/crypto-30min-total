@@ -282,32 +282,21 @@ st.subheader("보유 코인")
 st.dataframe(pd.DataFrame(rows))
 
 # -----------------------------
-# 최근 거래 + 합계 계산
+# 최근 거래 (종목별 요약)
 # -----------------------------
-hist = pd.read_sql("SELECT * FROM trades ORDER BY id DESC LIMIT 50", conn)
+hist = pd.read_sql("SELECT * FROM trades ORDER BY time ASC", conn)
 
 if not hist.empty:
-    total_buy = hist.loc[hist.side=="BUY","trade_value"].sum()
-    total_sell = hist.loc[hist.side=="SELL","trade_value"].sum()
-    total_profit = hist.loc[hist.side=="SELL","profit"].sum()
-    # 수익률 = 총 수익 / 총 매수금액 * 100
-    total_profit_percent = (total_profit / total_buy * 100) if total_buy>0 else 0
-    # 합계 행 추가
-    sum_row = pd.DataFrame([{
-        "time": "합계",
-        "ticker": "",
-        "price": "",
-        "qty": "",
-        "side": "",
-        "trade_value": f"{total_buy:,.0f}/{total_sell:,.0f}",
-        "profit": f"{total_profit:,.0f}",
-        "profit_percent": f"{total_profit_percent:.2f}%"
-    }])
-    hist_display = pd.concat([hist, sum_row], ignore_index=True)
+    summary = hist.groupby("ticker").apply(lambda x: pd.Series({
+        "매수총금액": x.loc[x.side=="BUY","trade_value"].sum(),
+        "매도총금액": x.loc[x.side=="SELL","trade_value"].sum(),
+        "수익": x.loc[x.side=="SELL","profit"].sum(),
+        "수익률": (x.loc[x.side=="SELL","profit"].sum() / x.loc[x.side=="BUY","trade_value"].sum()*100) if x.loc[x.side=="BUY","trade_value"].sum()>0 else 0
+    })).reset_index()
 else:
-    hist_display = hist
+    summary = pd.DataFrame(columns=["ticker","매수총금액","매도총금액","수익","수익률"])
 
-st.subheader("최근 거래 (금액/수익 표시)")
-st.dataframe(hist_display)
+st.subheader("최근 거래 요약 (종목별)")
+st.dataframe(summary)
 
 st.write("⚠️ Streamlit 종료 후에도 백그라운드 엔진이 5분마다 학습과 매매를 진행하며 DB에 상태를 저장합니다.")
